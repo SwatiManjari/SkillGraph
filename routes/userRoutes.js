@@ -1,5 +1,4 @@
 const express = require("express");
-
 const router = express.Router();
 
 const users = require("../data/users");
@@ -12,12 +11,21 @@ const {
 } = require("../utils/skillUtils");
 
 
-// Create a new user
+/* ============================================================
+   CREATE USER
+   POST /api/users
+   ============================================================ */
+
 router.post("/", (req, res) => {
+    const {
+        name,
+        college = "",
+        sem = "",
+        goal = "frontend",
+        skills = []
+    } = req.body;
 
-    const { name, goal, skills = [] } = req.body;
-
-    if (!name) {
+    if (!name || typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({
             error: "name is required"
         });
@@ -29,10 +37,23 @@ router.post("/", (req, res) => {
         });
     }
 
+    const normalizedGoal =
+        typeof goal === "string"
+            ? goal.trim().toLowerCase()
+            : "frontend";
+
+    const selectedGoal = goals.find(
+        item =>
+            item.id === normalizedGoal ||
+            item.label.toLowerCase() === normalizedGoal
+    );
+
     const newUser = {
         id: Date.now().toString(),
-        name,
-        goal: goal || null,
+        name: name.trim(),
+        college: typeof college === "string" ? college.trim() : "",
+        sem: typeof sem === "string" ? sem.trim() : "",
+        goal: selectedGoal ? selectedGoal.id : null,
         skills
     };
 
@@ -42,15 +63,22 @@ router.post("/", (req, res) => {
 });
 
 
-// Get all users
+/* ============================================================
+   GET ALL USERS
+   GET /api/users
+   ============================================================ */
+
 router.get("/", (req, res) => {
     res.json(users);
 });
 
 
-// Get one user
-router.get("/:userId", (req, res) => {
+/* ============================================================
+   GET ONE USER
+   GET /api/users/:userId
+   ============================================================ */
 
+router.get("/:userId", (req, res) => {
     const user = users.find(
         user => user.id === req.params.userId
     );
@@ -65,9 +93,65 @@ router.get("/:userId", (req, res) => {
 });
 
 
-// Update user's goal
-router.put("/:userId/goal", (req, res) => {
+/* ============================================================
+   UPDATE PROFILE
+   PUT /api/users/:userId/profile
+   ============================================================ */
 
+router.put("/:userId/profile", (req, res) => {
+    const user = users.find(
+        user => user.id === req.params.userId
+    );
+
+    if (!user) {
+        return res.status(404).json({
+            error: "User not found"
+        });
+    }
+
+    const {
+        name,
+        college,
+        sem
+    } = req.body;
+
+    if (
+        name !== undefined &&
+        (typeof name !== "string" || name.trim() === "")
+    ) {
+        return res.status(400).json({
+            error: "name cannot be empty"
+        });
+    }
+
+    if (name !== undefined) {
+        user.name = name.trim();
+    }
+
+    if (college !== undefined) {
+        user.college =
+            typeof college === "string"
+                ? college.trim()
+                : user.college;
+    }
+
+    if (sem !== undefined) {
+        user.sem =
+            typeof sem === "string"
+                ? sem.trim()
+                : user.sem;
+    }
+
+    res.json(user);
+});
+
+
+/* ============================================================
+   UPDATE USER GOAL
+   PUT /api/users/:userId/goal
+   ============================================================ */
+
+router.put("/:userId/goal", (req, res) => {
     const user = users.find(
         user => user.id === req.params.userId
     );
@@ -80,7 +164,7 @@ router.put("/:userId/goal", (req, res) => {
 
     const { goal } = req.body;
 
-    if (!goal) {
+    if (!goal || typeof goal !== "string") {
         return res.status(400).json({
             error: "goal is required"
         });
@@ -106,9 +190,12 @@ router.put("/:userId/goal", (req, res) => {
 });
 
 
-// Update user's skills
-router.put("/:userId/skills", (req, res) => {
+/* ============================================================
+   UPDATE USER SKILLS
+   PUT /api/users/:userId/skills
+   ============================================================ */
 
+router.put("/:userId/skills", (req, res) => {
     const user = users.find(
         user => user.id === req.params.userId
     );
@@ -133,9 +220,12 @@ router.put("/:userId/skills", (req, res) => {
 });
 
 
-// Get user's skill gap and readiness
-router.get("/:userId/progress", (req, res) => {
+/* ============================================================
+   GET USER PROGRESS
+   GET /api/users/:userId/progress
+   ============================================================ */
 
+router.get("/:userId/progress", (req, res) => {
     const user = users.find(
         user => user.id === req.params.userId
     );
@@ -179,8 +269,13 @@ router.get("/:userId/progress", (req, res) => {
 
     res.json({
         userId: user.id,
+        name: user.name,
+        college: user.college,
+        sem: user.sem,
         goal: goal.label,
+        goalId: goal.id,
         skills: goal.skills,
+        userSkills: user.skills,
         have: matchedSkills,
         gaps,
         readiness
