@@ -5,64 +5,72 @@ const app = express();
 
 const PORT = 3000;
 
-// IMPORT ROUTES
+
+// Routes
 const goalRoutes = require("./routes/goalRoutes");
 const skillRoutes = require("./routes/skillRoutes");
 const userRoutes = require("./routes/userRoutes");
 const aiRoutes = require("./routes/aiRoutes");
+const resourceRoutes = require("./routes/resourcesRoutes");
 
-// MIDDLEWARE
 
-// Allows Express to read JSON request bodies
+// Middleware
 app.use(express.json());
 
-// Serves files from public/
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+    express.static(
+        path.join(__dirname, "public")
+    )
+);
 
-// BASIC API ROUTE
 
+// Basic API test
 app.get("/api", (req, res) => {
+
     res.json({
         message: "SkillGraph API is working!"
     });
+
 });
 
-// HEALTH CHECK
 
+// Health check
 app.get("/api/health", (req, res) => {
+
     res.json({
         status: "OK"
     });
+
 });
 
-// GOALS API
 
+// API routes
 app.use("/api/goals", goalRoutes);
-
-// SKILLS API
 
 app.use("/api/skills", skillRoutes);
 
-// USERS API
-
 app.use("/api/users", userRoutes);
-
-// AI API
 
 app.use("/api/ai", aiRoutes);
 
-// API 404 HANDLER
+app.use("/api/resources", resourceRoutes);
 
+
+// Unknown API route
 app.use("/api", (req, res) => {
+
     res.status(404).json({
         error: "API route not found"
     });
+
 });
 
-// START SERVER
 
+// Start server
 app.listen(PORT, () => {
+
     console.log(
         `SkillGraph server running on http://localhost:${PORT}`
     );
+
 });
