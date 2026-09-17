@@ -255,6 +255,34 @@ async function apiRequest(url, options) {
 
 
 /* ============================================================
+   SAVE / LOAD USER SESSION
+   ============================================================ */
+
+function saveUserSession() {
+    if (state.userId) {
+        localStorage.setItem(
+            "skillgraphUserId",
+            state.userId
+        );
+    }
+}
+
+
+function loadUserSession() {
+    return localStorage.getItem(
+        "skillgraphUserId"
+    );
+}
+
+
+function clearUserSession() {
+    localStorage.removeItem(
+        "skillgraphUserId"
+    );
+}
+
+
+/* ============================================================
    5. GOAL HELPERS
    ============================================================ */
 
@@ -910,6 +938,7 @@ document
                     );
 
                 state.userId = user.id;
+                saveUserSession();
 
                 state.user.name =
                     user.name;
@@ -964,6 +993,7 @@ document
         "click",
         function () {
             state.userId = null;
+            clearUserSession();
 
             state.user = {
                 name: "Student",
@@ -2522,15 +2552,91 @@ function renderProgress() {
 
 
 /* ============================================================
-   24. INITIAL RENDER
+   RESTORE USER SESSION
    ============================================================ */
 
-renderHome();
-renderGoal();
-renderAssessment();
-renderGap();
-renderRoadmap();
-renderResources();
-renderProgress();
+async function restoreUserSession() {
+    const savedUserId = loadUserSession();
 
-markRailProgress();
+    // No saved user → stay on Start page
+    if (!savedUserId) {
+        renderHome();
+        renderGoal();
+        renderAssessment();
+        renderGap();
+        renderRoadmap();
+        renderResources();
+        renderProgress();
+        markRailProgress();
+        return;
+    }
+
+    try {
+        // Get the saved user from MongoDB
+        const user = await apiRequest(
+            `/users/${savedUserId}`
+        );
+
+        // Restore user information
+        state.userId = user.id;
+
+        state.user.name = user.name;
+        state.user.college = user.college || "";
+        state.user.sem = user.sem || "";
+
+        state.goalKey = user.goal || "frontend";
+
+        // Restore saved skills
+        state.have = {};
+
+        (user.skills || []).forEach(function(skill) {
+            state.have[skill] = "Beginner";
+        });
+
+        // Show the application
+        document
+          .getElementById("view-start")
+          .classList.add("hidden");
+
+        document
+          .getElementById("app-shell")
+          .classList.remove("hidden");
+
+        // Get latest progress
+        await refreshProgress();
+
+        // Show the application
+        showView("home");
+
+        // Render everything
+        renderHome();
+        renderGoal();
+        renderAssessment();
+        renderGap();
+        renderRoadmap();
+        renderResources();
+        renderProgress();
+        markRailProgress();
+
+        console.log("User session restored");
+    } catch (error) {
+        console.error(
+            "Could not restore user session:",
+            error
+        );
+
+        // Saved ID is no longer valid
+        clearUserSession();
+
+        renderHome();
+        renderGoal();
+        renderAssessment();
+        renderGap();
+        renderRoadmap();
+        renderResources();
+        renderProgress();
+        markRailProgress();
+    }
+}
+
+restoreUserSession();
