@@ -1,0 +1,26 @@
+{
+  "name": "skillgraph-1",
+  "version": "1.0.0",
+  "description": "A web application developed collaboratively for DevHack 2026 using modern web technologies.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SwatiManjari/SkillGraph.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/SwatiManjari/SkillGraph/issues"
+  },
+  "homepage": "https://github.com/SwatiManjari/SkillGraph#readme",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.10.1"
+  }
+}
