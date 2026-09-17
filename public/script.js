@@ -1,6 +1,4 @@
-﻿/* ============================================================
-   1. MOCK DATA — replace with backend responses later
-   ============================================================ */
+﻿
 
 var SKILL_CATALOG = {
   "Core languages": ["HTML", "CSS", "JavaScript", "Python", "Java", "SQL"],
@@ -84,8 +82,6 @@ var DEFAULT_RESOURCE = {
   project: "Build one small, finishable project that forces you to use this skill directly."
 };
 
-/* The AI planner's mock knowledge. Any goal not listed here falls back
-   to buildGenericPlan(). Later this whole block is replaced by one API call. */
 var AI_PRESETS = {
   "cloud security": {
     title: "Cloud Security Engineer",
@@ -123,23 +119,183 @@ var AI_SUGGESTIONS = ["Cloud security engineer", "Game developer", "Data analyst
 
 var LEVEL_PCT = { "Beginner": 33, "Intermediate": 66, "Advanced": 100 };
 
-/* ============================================================
-   2. STATE — single source of truth for the whole page
-   ============================================================ */
+
+
+var API_BASE = "/api";
+var resourceCache = {};
+var apiReady = false;
 
 var state = {
   user: { name: "Student", college: "", sem: "" },
-  goalKey: "frontend",      // active preset track (default)
-  customGoal: null,         // { label, skills } applied from the AI planner
-  have: {                   // skill name -> level
+  goalKey: "frontend",     
+  customGoal: null,         
+  have: {                   
     "HTML": "Intermediate",
     "CSS": "Intermediate",
     "JavaScript": "Beginner",
     "Git": "Beginner"
   },
-  customSkills: [],         // skills the user typed in themselves
-  aiPlan: null              // last plan the AI planner produced
+  customSkills: [],        
+  aiPlan: null,            
+  userId: null               
 };
+
+
+async function apiRequest(url, options){
+  var response = await fetch(API_BASE + url, options || {});
+  var data = {};
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    data = {};
+  }
+
+  if (!response.ok){
+    throw new Error(data.error || "API request failed");
+  }
+
+  return data;
+}
+
+async function loadBackendData(){
+  try {
+    var results = await Promise.all([
+      apiRequest("/goals"),
+      apiRequest("/skills")
+    ]);
+
+    var backendGoals = results[0];
+    var backendSkills = results[1];
+
+    if (Array.isArray(backendGoals)){
+      GOALS = {};
+      for (var i = 0; i < backendGoals.length; i++){
+        var goal = backendGoals[i];
+        GOALS[goal.id] = goal;
+      }
+    }
+
+    if (backendSkills && typeof backendSkills === "object"){
+      SKILL_CATALOG = backendSkills;
+    }
+
+    apiReady = true;
+    renderGoal();
+  } catch (error) {
+    console.error("Could not load backend data:", error);
+  }
+}
+
+async function createBackendUser(){
+  try {
+    var user = await apiRequest("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: state.user.name,
+        goal: state.goalKey,
+        skills: haveList()
+      })
+    });
+
+    state.userId = user.id;
+  } catch (error) {
+    console.error("Could not create backend user:", error);
+  }
+}
+
+async function saveSkillsToBackend(){
+  if (!state.userId) return;
+
+  try {
+    await apiRequest("/users/" + state.userId + "/skills", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        skills: Object.keys(state.have)
+      })
+    });
+  } catch (error) {
+    console.error("Could not save skills:", error);
+  }
+}
+
+async function saveGoalToBackend(){
+  if (!state.userId || state.customGoal) return;
+
+  try {
+    await apiRequest("/users/" + state.userId + "/goal", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        goal: state.goalKey
+      })
+    });
+  } catch (error) {
+    console.error("Could not save goal:", error);
+  }
+}
+
+async function loadResourcesForSkills(skills){
+  var missing = [];
+
+  for (var i = 0; i < skills.length; i++){
+    if (!resourceCache[skills[i]]) missing.push(skills[i]);
+  }
+
+  if (missing.length === 0) return;
+
+  try {
+    var data = await apiRequest("/resources/multiple", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        skills: missing
+      })
+    });
+
+    for (var skill in data){
+      if (data.hasOwnProperty(skill)){
+        resourceCache[skill] = data[skill];
+      }
+    }
+  } catch (error) {
+    console.error("Could not load learning resources:", error);
+  }
+}
+
+function normalizeResource(skill){
+  var data = resourceCache[skill];
+
+  if (!data || !Array.isArray(data)) {
+    return null;
+  }
+
+  var links = [];
+
+  for (var i = 0; i < data.length; i++){
+    links.push({
+      title: data[i].title,
+      url: data[i].url
+    });
+  }
+
+  return {
+    links: links,
+    project: data.length > 0
+      ? "Use this skill in a small project while studying the resource."
+      : DEFAULT_RESOURCE.project
+  };
+}
 
 /* ---------- helpers ---------- */
 
@@ -178,6 +334,10 @@ function readiness(){
 }
 
 function resourceFor(skill){
+  var backendResource = normalizeResource(skill);
+
+  if (backendResource) return backendResource;
+
   return RESOURCES[skill] ? RESOURCES[skill] : DEFAULT_RESOURCE;
 }
 
@@ -186,13 +346,24 @@ function buildResourceCard(skill){
   var card = document.createElement("div");
   card.className = "card res-card";
   var links = "";
+
   for (var i = 0; i < res.links.length; i++){
-    links += '<a href="#">' + res.links[i] + '</a>';
+    var link = res.links[i];
+
+    if (typeof link === "string"){
+      links += '<a href="#" onclick="return false;">' + link + '</a>';
+    } else {
+      links += '<a href="' + link.url + '" target="_blank" rel="noopener noreferrer">' +
+        link.title +
+        '</a>';
+    }
   }
+
   card.innerHTML =
     '<h3>' + skill + '</h3>' +
     '<div class="res-links">' + links + '</div>' +
     '<div class="project-idea"><b>Project idea — </b>' + res.project + '</div>';
+
   return card;
 }
 
@@ -209,10 +380,6 @@ function buildRoadStep(skill, index){
     '</div>';
   return step;
 }
-
-/* ============================================================
-   3. VIEW SWITCHING
-   ============================================================ */
 
 var panes = document.querySelectorAll(".pane");
 var railNodes = document.querySelectorAll(".rail-node[data-view]");
@@ -263,9 +430,6 @@ function markRailProgress(){
   }
 }
 
-/* ============================================================
-   4. START PAGE
-   ============================================================ */
 
 document.getElementById("start-form").addEventListener("submit", function(e){
   e.preventDefault();
@@ -275,6 +439,8 @@ document.getElementById("start-form").addEventListener("submit", function(e){
   document.getElementById("view-start").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
   showView("home");
+
+  createBackendUser();
 });
 
 document.getElementById("exit-btn").addEventListener("click", function(){
@@ -283,9 +449,7 @@ document.getElementById("exit-btn").addEventListener("click", function(){
   window.scrollTo(0, 0);
 });
 
-/* ============================================================
-   5. HOME
-   ============================================================ */
+
 
 function renderHome(){
   document.getElementById("home-greeting").textContent = "Welcome, " + state.user.name;
@@ -329,9 +493,7 @@ document.getElementById("save-profile").addEventListener("click", function(){
   renderHome();
 });
 
-/* ============================================================
-   6. CAREER GOAL
-   ============================================================ */
+
 
 function renderGoal(){
   var grid = document.getElementById("goal-grid");
@@ -353,6 +515,8 @@ function renderGoal(){
         state.goalKey = key;
         state.customGoal = null;
         renderGoal();
+        saveGoalToBackend();
+        renderHome();
       });
       grid.appendChild(card);
     })(keys[i]);
@@ -369,9 +533,7 @@ function renderGoal(){
   }
 }
 
-/* ============================================================
-   7. SKILL ASSESSMENT
-   ============================================================ */
+
 
 function renderAssessment(){
   var wrap = document.getElementById("assess-form");
@@ -423,6 +585,7 @@ function buildAssessRow(skill){
       b.addEventListener("click", function(){
         state.have[skill] = level;
         renderAssessment();
+        saveSkillsToBackend();
       });
       seg.appendChild(b);
     })(levels[i]);
@@ -432,6 +595,7 @@ function buildAssessRow(skill){
     if (cb.checked) state.have[skill] = state.have[skill] || "Beginner";
     else delete state.have[skill];
     renderAssessment();
+    saveSkillsToBackend();
   });
 
   row.appendChild(left);
@@ -458,6 +622,7 @@ function addCustomSkill(){
   input.value = "";
   input.focus();
   renderCustomChips();
+  saveSkillsToBackend();
 }
 
 function renderCustomChips(){
@@ -483,6 +648,7 @@ function renderCustomChips(){
         delete state.have[name];
         state.customSkills.splice(state.customSkills.indexOf(name), 1);
         renderCustomChips();
+        saveSkillsToBackend();
       });
 
       chip.appendChild(x);
@@ -495,12 +661,7 @@ document.getElementById("save-assessment").addEventListener("click", function(){
   showView("gap");
 });
 
-/* ============================================================
-   8. AI PLANNER  (all simulated)
-   To connect a real backend later, replace generatePlan() with a
-   fetch() call. Keep the returned shape the same:
-   { title, summary, skills: [], have: [], gaps: [] }
-   ============================================================ */
+
 
 function renderAiSuggestions(){
   var wrap = document.getElementById("ai-suggest");
@@ -525,7 +686,7 @@ document.getElementById("ai-goal-input").addEventListener("keydown", function(e)
   if (e.key === "Enter"){ e.preventDefault(); runPlanner(); }
 });
 
-function runPlanner(){
+async function runPlanner(){
   var goalText = document.getElementById("ai-goal-input").value.trim();
   if (goalText === "") return;
 
@@ -537,61 +698,46 @@ function runPlanner(){
   statusBox.classList.remove("hidden");
   statusText.textContent = "Reading the skills you've logged…";
 
-  setTimeout(function(){ statusText.textContent = "Mapping the skills this role needs…"; }, 700);
-  setTimeout(function(){ statusText.textContent = "Ordering your roadmap…"; }, 1400);
-  setTimeout(function(){
-    statusBox.classList.add("hidden");
-    state.aiPlan = generatePlan(goalText);
+  try {
+    await new Promise(function(resolve){
+      setTimeout(resolve, 500);
+    });
+
+    statusText.textContent = "Mapping the skills this role needs…";
+
+    var plan = await apiRequest("/ai/plan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        goalText: goalText,
+        have: Object.keys(state.have)
+      })
+    });
+
+    statusText.textContent = "Ordering your roadmap…";
+
+    await loadResourcesForSkills(plan.gaps || []);
+
+    state.aiPlan = plan;
     renderAiPlan();
+
+    statusBox.classList.add("hidden");
     result.classList.remove("hidden");
     markRailProgress();
-  }, 2100);
-}
 
-/* --- the stand-in "model": replace this function with an API call --- */
-function generatePlan(goalText){
-  var lower = goalText.toLowerCase();
+  } catch (error) {
+    statusBox.classList.add("hidden");
+    result.classList.remove("hidden");
 
-  // a) does the text match one of the preset roles?
-  var presetKeys = Object.keys(AI_PRESETS);
-  for (var i = 0; i < presetKeys.length; i++){
-    if (lower.indexOf(presetKeys[i]) !== -1) return finishPlan(AI_PRESETS[presetKeys[i]]);
+    result.innerHTML =
+      '<div class="card">' +
+        '<h3>Could not generate the plan</h3>' +
+        '<p class="empty-note">' + error.message + '</p>' +
+        '<p class="empty-note">Make sure the SkillGraph backend is running with <b>npm start</b>.</p>' +
+      '</div>';
   }
-
-  // b) does it match one of the built-in career tracks?
-  var goalKeys = Object.keys(GOALS);
-  for (var j = 0; j < goalKeys.length; j++){
-    var g = GOALS[goalKeys[j]];
-    if (lower.indexOf(goalKeys[j]) !== -1 || lower.indexOf(g.label.toLowerCase()) !== -1){
-      return finishPlan({
-        title: g.label,
-        summary: g.blurb + " This plan starts from the skills you've already logged.",
-        skills: g.skills
-      });
-    }
-  }
-
-  // c) anything else — generic plan
-  return finishPlan(buildGenericPlan(goalText));
-}
-
-function buildGenericPlan(goalText){
-  var clean = goalText.charAt(0).toUpperCase() + goalText.slice(1);
-  return {
-    title: clean,
-    summary: "No stored track matched this exactly, so here's a general plan built from the foundations most technical roles share. Once the backend AI is connected, this is where its answer will appear.",
-    skills: ["Programming Fundamentals", "Data Structures", "Git", "Problem Solving", "Domain Fundamentals", "One Specialist Tool", "Portfolio Projects", "Communication"]
-  };
-}
-
-function finishPlan(base){
-  var have = [];
-  var gaps = [];
-  for (var i = 0; i < base.skills.length; i++){
-    if (state.have[base.skills[i]]) have.push(base.skills[i]);
-    else gaps.push(base.skills[i]);
-  }
-  return { title: base.title, summary: base.summary, skills: base.skills, have: have, gaps: gaps };
 }
 
 function renderAiPlan(){
@@ -630,7 +776,6 @@ function renderAiPlan(){
     '<p class="ai-note" style="margin-top:14px;">Green means you have already logged it. Amber is a gap.</p>';
   box.appendChild(skillsBlock);
 
-  /* --- roadmap --- */
   var roadBlock = document.createElement("div");
   roadBlock.className = "card ai-block";
   roadBlock.innerHTML = '<h3>Suggested roadmap</h3>';
@@ -686,9 +831,6 @@ function renderAiPlan(){
   box.appendChild(actions);
 }
 
-/* ============================================================
-   9. GAP ANALYSIS
-   ============================================================ */
 
 function renderGap(){
   document.getElementById("gap-sub").textContent =
@@ -717,9 +859,6 @@ function renderGap(){
   }
 }
 
-/* ============================================================
-   10. ROADMAP
-   ============================================================ */
 
 function renderRoadmap(){
   var wrap = document.getElementById("roadmap-list");
@@ -735,11 +874,9 @@ function renderRoadmap(){
   }
 }
 
-/* ============================================================
-   11. RESOURCES
-   ============================================================ */
 
-function renderResources(){
+
+async function renderResources(){
   var grid = document.getElementById("resources-grid");
   grid.innerHTML = "";
   var gaps = gapList();
@@ -748,14 +885,19 @@ function renderResources(){
     grid.innerHTML = '<p class="empty-note">Nothing to recommend — every skill in this track is already logged.</p>';
     return;
   }
+
+  grid.innerHTML = '<p class="empty-note">Loading learning resources…</p>';
+
+  await loadResourcesForSkills(gaps);
+
+  grid.innerHTML = "";
+
   for (var i = 0; i < gaps.length; i++){
     grid.appendChild(buildResourceCard(gaps[i]));
   }
 }
 
-/* ============================================================
-   12. PROGRESS
-   ============================================================ */
+
 
 function renderProgress(){
   var pct = readiness();
@@ -785,3 +927,6 @@ function renderProgress(){
     bars.appendChild(row);
   }
 }
+
+
+loadBackendData();

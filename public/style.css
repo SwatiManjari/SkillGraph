@@ -100,7 +100,6 @@ a{color:var(--blue-deep);}
 .rail-brand{font-family:'Fraunces',serif; font-weight:600; font-size:18px; padding:0 24px 24px; display:flex; align-items:center; gap:9px;}
 .rail-brand .dot{width:9px; height:9px; border-radius:50%; background:var(--sky);}
 .rail-path{position:relative; display:flex; flex-direction:column; flex:1; padding:4px 0;}
-.rail-path::before{content:""; position:absolute; left:35px; top:14px; bottom:14px; width:2px; background:var(--line);}
 .rail-node{
   position:relative; display:flex; align-items:center; gap:14px;
   padding:12px 24px; font-size:14px; color:var(--ink-soft); text-align:left; width:100%;
