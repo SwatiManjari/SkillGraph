@@ -1,0 +1,265 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Graph — find your next skill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+
+<!-- ============ 1. START PAGE ============ -->
+<section id="view-start">
+  <div class="start-shell">
+    <div class="start-visual">
+      <div class="brand"><span class="dot"></span>Skill Graph</div>
+      <svg viewBox="0 0 320 200" fill="none" aria-hidden="true">
+        <line x1="40" y1="150" x2="120" y2="92" stroke="#4E7BC9" stroke-width="1.5"/>
+        <line x1="120" y1="92" x2="200" y2="120" stroke="#4E7BC9" stroke-width="1.5"/>
+        <line x1="120" y1="92" x2="150" y2="42" stroke="#4E7BC9" stroke-width="1.5"/>
+        <line x1="200" y1="120" x2="268" y2="58" stroke="#4E7BC9" stroke-width="1.5"/>
+        <line x1="200" y1="120" x2="255" y2="152" stroke="#4E7BC9" stroke-width="1.5"/>
+        <line x1="150" y1="42" x2="268" y2="58" stroke="#3A5B94" stroke-width="1.5" stroke-dasharray="4 5"/>
+        <circle cx="40"  cy="150" r="7" fill="#33C2AC"/>
+        <circle cx="120" cy="92"  r="7" fill="#33C2AC"/>
+        <circle cx="200" cy="120" r="7" fill="#33C2AC"/>
+        <circle cx="150" cy="42"  r="6" fill="none" stroke="#F0A94B" stroke-width="2" stroke-dasharray="3 3"/>
+        <circle cx="255" cy="152" r="6" fill="none" stroke="#7FB4F2" stroke-width="2" stroke-dasharray="3 3"/>
+        <circle cx="268" cy="58"  r="8" fill="#F0A94B"/>
+      </svg>
+      <p class="start-caption">Every skill you already have connects to the one you're missing. Skill Graph draws the shortest path between them.</p>
+    </div>
+
+    <div class="start-panel">
+      <div>
+        <h1>Let's map your skills</h1>
+        <p class="sub">Three details to start. No account needed.</p>
+      </div>
+      <form id="start-form" style="display:flex; flex-direction:column; gap:18px;">
+        <div class="field">
+          <label for="start-name">Your name</label>
+          <input id="start-name" type="text" placeholder="e.g. Swati" required>
+        </div>
+        <div class="field">
+          <label for="start-college">College or degree</label>
+          <input id="start-college" type="text" placeholder="e.g. BSc Computer Science, GMU Sambalpur" required>
+        </div>
+        <div class="field">
+          <label for="start-sem">Current year or semester</label>
+          <input id="start-sem" type="text" placeholder="e.g. Semester III" required>
+        </div>
+        <button type="submit" class="btn-primary">Start building my graph</button>
+      </form>
+      <p class="start-foot">You can change any of this later from the Home page.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. APP ============ -->
+<div id="app-shell" class="app-shell hidden">
+  <nav class="rail">
+    <div class="rail-brand"><span class="dot"></span>Skill Graph</div>
+    <div class="rail-path">
+      <button class="rail-node" data-view="home"><span class="node-dot"></span><span>Home</span></button>
+      <button class="rail-node" data-view="goal"><span class="node-dot"></span><span>Career goal</span></button>
+      <button class="rail-node" data-view="assessment"><span class="node-dot"></span><span>Skill assessment</span></button>
+      <button class="rail-node ai-node" data-view="ai"><span class="node-dot"></span><span>AI planner</span></button>
+      <button class="rail-node" data-view="gap"><span class="node-dot"></span><span>Gap analysis</span></button>
+      <button class="rail-node" data-view="roadmap"><span class="node-dot"></span><span>Roadmap</span></button>
+      <button class="rail-node" data-view="resources"><span class="node-dot"></span><span>Resources</span></button>
+      <button class="rail-node" data-view="progress"><span class="node-dot"></span><span>Progress</span></button>
+    </div>
+    <button class="rail-node rail-exit" id="exit-btn"><span class="node-dot"></span><span>Start over</span></button>
+  </nav>
+
+  <main class="content">
+
+    <!-- HOME -->
+    <section id="view-home" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2 id="home-greeting">Welcome</h2>
+          <p class="eyebrow" id="home-sub"></p>
+        </div>
+        <span class="pill" id="home-goal-pill">Goal: Frontend Developer</span>
+      </div>
+
+      <div class="grid-3">
+        <div class="card stat"><span class="num" id="stat-have">0</span><span class="lbl">Goal skills you have</span></div>
+        <div class="card stat"><span class="num" id="stat-gap">0</span><span class="lbl">Skills still to learn</span></div>
+        <div class="card stat"><span class="num" id="stat-ready">0%</span><span class="lbl">Goal readiness</span></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:14px;">Skills you've logged</h3>
+        <div class="chip-row" id="home-chips"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-bottom:12px;">Your details</h3>
+          <div class="field" style="margin-bottom:12px;"><label for="profile-name">Name</label><input id="profile-name" type="text"></div>
+          <div class="field" style="margin-bottom:12px;"><label for="profile-college">College or degree</label><input id="profile-college" type="text"></div>
+          <div class="field" style="margin-bottom:14px;"><label for="profile-sem">Year or semester</label><input id="profile-sem" type="text"></div>
+          <button class="btn-secondary" id="save-profile">Save details</button>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:8px;">Next best step</h3>
+          <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:14px;">The first gap your roadmap wants you to close.</p>
+          <span class="chip blue" id="home-next-step">—</span>
+          <div class="btn-row" style="margin-top:18px;">
+            <button class="btn-dark" data-goto="roadmap">Open roadmap</button>
+            <button class="btn-secondary" data-goto="ai">Ask the AI planner</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAREER GOAL -->
+    <section id="view-goal" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Choose your career goal</h2>
+          <p class="eyebrow">Pick a ready-made track, or describe your own goal in the AI planner and apply it here.</p>
+        </div>
+      </div>
+      <div class="grid-3" id="goal-grid"></div>
+      <div class="card hidden" id="custom-goal-card">
+        <h3 style="margin-bottom:8px;">Your custom goal</h3>
+        <p class="empty-note" id="custom-goal-text"></p>
+      </div>
+    </section>
+
+    <!-- SKILL ASSESSMENT -->
+    <section id="view-assessment" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Skill assessment</h2>
+          <p class="eyebrow">Tick what you know and set your level. Anything not on the list, add it yourself below.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:6px;">Add any skill</h3>
+        <p class="empty-note" style="margin-bottom:14px;">The list can't cover everything — type any skill and it joins your graph.</p>
+        <div class="add-row">
+          <div class="field">
+            <label for="custom-skill-input">Skill name</label>
+            <input id="custom-skill-input" type="text" placeholder="e.g. Figma, Tailwind, Rust">
+          </div>
+          <div class="field" style="flex:0 0 170px;">
+            <label for="custom-skill-level">Your level</label>
+            <select id="custom-skill-level">
+              <option>Beginner</option>
+              <option>Intermediate</option>
+              <option>Advanced</option>
+            </select>
+          </div>
+          <button class="btn-dark" id="add-custom-skill" style="height:45px;">Add skill</button>
+        </div>
+        <div class="chip-row" id="custom-chip-row" style="margin-top:18px;"></div>
+      </div>
+
+      <div class="card" style="display:flex; flex-direction:column; gap:22px;" id="assess-form"></div>
+
+      <div class="btn-row">
+        <button class="btn-dark" id="save-assessment">See my gap analysis</button>
+      </div>
+    </section>
+
+    <!-- AI PLANNER -->
+    <section id="view-ai" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>AI career planner</h2>
+          <p class="eyebrow">Type any career goal — even one that isn't in the list — and get the skills it needs, an order to learn them in, and where to study each one.</p>
+        </div>
+      </div>
+
+      <div class="ai-panel">
+        <p class="ai-tagline">The planner reads the skills you've already logged, so the plan it writes skips what you know and starts at your first real gap.</p>
+        <div class="ai-form">
+          <div class="field">
+            <label for="ai-goal-input">What do you want to become?</label>
+            <input id="ai-goal-input" type="text" placeholder="e.g. Cloud security engineer, Game developer, Data analyst">
+          </div>
+          <button class="btn-primary" id="ai-generate" style="height:45px; padding:0 24px;">Generate my plan</button>
+        </div>
+        <div class="ai-suggest" id="ai-suggest"></div>
+        <div id="ai-status" class="ai-status hidden"><span class="spinner"></span><span id="ai-status-text">Reading your skills…</span></div>
+      </div>
+
+      <div id="ai-result" class="ai-result hidden"></div>
+    </section>
+
+    <!-- GAP ANALYSIS -->
+    <section id="view-gap" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Skill gap analysis</h2>
+          <p class="eyebrow" id="gap-sub">What your goal needs, against what you have.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        <div class="card stat"><span class="num" id="gap-stat-have" style="color:var(--teal);">0</span><span class="lbl">Already covered</span></div>
+        <div class="card stat"><span class="num" id="gap-stat-miss" style="color:var(--amber);">0</span><span class="lbl">Missing</span></div>
+        <div class="card stat"><span class="num" id="gap-stat-total">0</span><span class="lbl">Skills in this track</span></div>
+      </div>
+      <div class="card"><div class="gap-list" id="gap-list"></div></div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section id="view-roadmap" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Your personalised roadmap</h2>
+          <p class="eyebrow">One sensible order for closing the gaps, foundations first.</p>
+        </div>
+      </div>
+      <div class="card"><div class="roadmap" id="roadmap-list"></div></div>
+    </section>
+
+    <!-- RESOURCES -->
+    <section id="view-resources" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Learning resources &amp; projects</h2>
+          <p class="eyebrow">Where to study each missing skill, and one project to prove you learned it.</p>
+        </div>
+      </div>
+      <div class="grid-2" id="resources-grid"></div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section id="view-progress" class="pane">
+      <div class="pane-head">
+        <div>
+          <h2>Progress tracking</h2>
+          <p class="eyebrow">How far along this track you are, skill by skill.</p>
+        </div>
+      </div>
+      <div class="card ring-wrap">
+        <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-tint)" stroke-width="12"/>
+          <circle id="progress-ring" cx="60" cy="60" r="50" fill="none" stroke="var(--blue)" stroke-width="12"
+                  stroke-linecap="round" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="ring-txt">
+          <div class="num" id="ring-percent">0%</div>
+          <div class="lbl">overall goal readiness</div>
+        </div>
+      </div>
+      <div class="card" id="progress-bars"></div>
+    </section>
+
+  </main>
+</div>
+
+
+<script src="script.js"></script>
+</body>
+</html>
