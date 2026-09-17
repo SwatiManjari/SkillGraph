@@ -1,76 +1,138 @@
+require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 
+const connectDB = require("./config/db");
+
 const app = express();
 
-const PORT = 3000;
+const PORT =
+    process.env.PORT || 3000;
 
 
-// Routes
-const goalRoutes = require("./routes/goalRoutes");
-const skillRoutes = require("./routes/skillRoutes");
-const userRoutes = require("./routes/userRoutes");
-const aiRoutes = require("./routes/aiRoutes");
-const resourceRoutes = require("./routes/resourcesRoutes");
+/* ============================================================
+   ROUTES
+   ============================================================ */
+
+const goalRoutes =
+    require("./routes/goalRoutes");
+
+const skillRoutes =
+    require("./routes/skillRoutes");
+
+const userRoutes =
+    require("./routes/userRoutes");
+
+const aiRoutes =
+    require("./routes/aiRoutes");
+
+const resourceRoutes =
+    require("./routes/resourcesRoutes");
 
 
-// Middleware
+/* ============================================================
+   MIDDLEWARE
+   ============================================================ */
+
 app.use(express.json());
 
 app.use(
     express.static(
-        path.join(__dirname, "public")
+        path.join(
+            __dirname,
+            "public"
+        )
     )
 );
 
 
-// Basic API test
+/* ============================================================
+   BASIC API TEST
+   ============================================================ */
+
 app.get("/api", (req, res) => {
-
     res.json({
-        message: "SkillGraph API is working!"
+        message:
+            "SkillGraph API is working!"
     });
-
 });
 
 
-// Health check
-app.get("/api/health", (req, res) => {
+/* ============================================================
+   HEALTH CHECK
+   ============================================================ */
 
-    res.json({
-        status: "OK"
-    });
-
-});
-
-
-// API routes
-app.use("/api/goals", goalRoutes);
-
-app.use("/api/skills", skillRoutes);
-
-app.use("/api/users", userRoutes);
-
-app.use("/api/ai", aiRoutes);
-
-app.use("/api/resources", resourceRoutes);
+app.get(
+    "/api/health",
+    (req, res) => {
+        res.json({
+            status: "OK"
+        });
+    }
+);
 
 
-// Unknown API route
-app.use("/api", (req, res) => {
+/* ============================================================
+   API ROUTES
+   ============================================================ */
 
-    res.status(404).json({
-        error: "API route not found"
-    });
+app.use(
+    "/api/goals",
+    goalRoutes
+);
 
-});
+app.use(
+    "/api/skills",
+    skillRoutes
+);
+
+app.use(
+    "/api/users",
+    userRoutes
+);
+
+app.use(
+    "/api/ai",
+    aiRoutes
+);
+
+app.use(
+    "/api/resources",
+    resourceRoutes
+);
 
 
-// Start server
-app.listen(PORT, () => {
+/* ============================================================
+   UNKNOWN API ROUTE
+   ============================================================ */
 
-    console.log(
-        `SkillGraph server running on http://localhost:${PORT}`
+app.use(
+    "/api",
+    (req, res) => {
+        res.status(404).json({
+            error:
+                "API route not found"
+        });
+    }
+);
+
+
+/* ============================================================
+   START SERVER
+   ============================================================ */
+
+async function startServer() {
+    await connectDB();
+
+    app.listen(
+        PORT,
+        () => {
+            console.log(
+                `SkillGraph server running on http://localhost:${PORT}`
+            );
+        }
     );
+}
 
-});
+startServer();
